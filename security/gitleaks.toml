@@ -1,0 +1,17 @@
+# Gitleaks configuration: default rules plus a narrow allowlist.
+# The allowlisted paths hold deliberately fake credentials that exist to test the
+# exposure scanner and the red-team harness. Everything else is scanned normally.
+title = "AI security portfolio"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Synthetic credentials used as test fixtures"
+paths = [
+  '''ai-exposure-scanner/sample_assets\.json''',
+  '''ai-exposure-scanner/findings\.csv''',
+  '''ai-exposure-scanner/tests/''',
+  '''claude-enterprise-app/tests/''',
+  '''claude-enterprise-app/redteam/''',
+]

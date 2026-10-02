@@ -1,0 +1,184 @@
+{
+  "assets": [
+    {
+      "id": "model-001",
+      "name": "Customer Risk Prediction Model",
+      "type": "Model",
+      "description": "LLM-based model for predicting customer credit risk",
+      "owner": "AI/ML Team",
+      "sensitivity": "High",
+      "model_config": {
+        "id": "model-001",
+        "name": "Customer Risk Prediction Model",
+        "version_control_enabled": false,
+        "input_validation_enabled": false,
+        "monitoring_enabled": false
+      },
+      "config": {
+        "id": "model-001",
+        "name": "Customer Risk Model Config",
+        "api_key": "sk-proj-0123456789abcdef1234",
+        "database_url": "postgresql://admin:SecurePass123@db.internal:5432/mldata",
+        "model_path": "s3://models/risk-prediction/v2.0"
+      }
+    },
+    {
+      "id": "api-001",
+      "name": "Risk Scoring API",
+      "type": "API",
+      "description": "REST API for real-time risk scoring",
+      "endpoints": [
+        {
+          "id": "api-001-score",
+          "name": "POST /api/v1/score",
+          "protocol": "http",
+          "authentication": "none",
+          "rate_limiting_enabled": false,
+          "logging_enabled": false
+        },
+        {
+          "id": "api-001-health",
+          "name": "GET /health",
+          "protocol": "https",
+          "authentication": "api_key",
+          "rate_limiting_enabled": true,
+          "logging_enabled": true
+        }
+      ]
+    },
+    {
+      "id": "iam-role-001",
+      "name": "ML Pipeline Execution Role",
+      "type": "IAM Role",
+      "permissions": {
+        "principal": "ml-pipeline-role",
+        "actions": [
+          "*"
+        ],
+        "resources": [
+          "*"
+        ],
+        "mfa_required": false
+      }
+    },
+    {
+      "id": "iam-role-002",
+      "name": "Data Scientist Role",
+      "type": "IAM Role",
+      "permissions": {
+        "principal": "data-scientist-role",
+        "actions": [
+          "s3:GetObject",
+          "s3:PutObject",
+          "ec2:DescribeInstances"
+        ],
+        "resources": [
+          "arn:aws:s3:::data-bucket/*",
+          "arn:aws:ec2:*:*:instance/*"
+        ],
+        "mfa_required": true
+      }
+    },
+    {
+      "id": "app-001",
+      "name": "Customer Portal",
+      "type": "Application",
+      "description": "Web application for customers to view risk scores",
+      "dependencies": [
+        {
+          "name": "requests",
+          "version": "2.25.0"
+        },
+        {
+          "name": "flask",
+          "version": "1.1.2"
+        },
+        {
+          "name": "django",
+          "version": "2.2.0"
+        },
+        {
+          "name": "numpy",
+          "version": "1.21.0"
+        },
+        {
+          "name": "pandas",
+          "version": "1.3.0"
+        }
+      ]
+    },
+    {
+      "id": "db-001",
+      "name": "Customer Data Warehouse",
+      "type": "Database",
+      "description": "PostgreSQL database with PII",
+      "config": {
+        "id": "db-001",
+        "name": "Customer DW",
+        "backup_encryption": false,
+        "access_logging": false,
+        "password": "CustomerDB@2024"
+      }
+    },
+    {
+      "id": "vector-db-001",
+      "name": "Embeddings Store",
+      "type": "Vector Database",
+      "description": "Pinecone vector DB for customer embeddings",
+      "config": {
+        "id": "vector-db-001",
+        "name": "Pinecone Store",
+        "api_key": "pcne_abcdef123456789"
+      }
+    },
+    {
+      "id": "cloud-storage-001",
+      "name": "Model Artifacts S3",
+      "type": "Cloud Storage",
+      "description": "S3 bucket storing trained models",
+      "config": {
+        "bucket": "ai-models-prod",
+        "public_access": true,
+        "encryption": false,
+        "versioning_enabled": false
+      }
+    },
+    {
+      "id": "sm-endpoint-001",
+      "name": "Risk Model SageMaker Endpoint",
+      "type": "SageMaker Endpoint",
+      "aws_ai_config": {
+        "service": "sagemaker_endpoint",
+        "kms_key_id": null,
+        "data_capture": {
+          "enabled": true,
+          "kms_key_id": null,
+          "destination": "s3://ml-capture/risk/"
+        },
+        "enable_network_isolation": false,
+        "vpc_config": null
+      }
+    },
+    {
+      "id": "sm-notebook-001",
+      "name": "Data Science Notebook",
+      "type": "SageMaker Notebook",
+      "aws_ai_config": {
+        "service": "sagemaker_notebook",
+        "direct_internet_access": "Enabled",
+        "root_access": "Enabled"
+      }
+    },
+    {
+      "id": "bedrock-001",
+      "name": "Customer Support Assistant (Bedrock)",
+      "type": "Bedrock Application",
+      "aws_ai_config": {
+        "service": "bedrock",
+        "guardrail_id": "gr-abc123",
+        "model_invocation_logging": true,
+        "vpc_endpoint": true
+      }
+    }
+  ]
+}

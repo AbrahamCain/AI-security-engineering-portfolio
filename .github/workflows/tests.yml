@@ -1,0 +1,104 @@
+name: ci
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Unit tests + red-team harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: pip install -r ai-exposure-scanner/requirements.txt -r claude-enterprise-app/requirements-dev.txt
+      - name: Scanner tests
+        working-directory: ai-exposure-scanner
+        run: |
+          pytest tests -v
+          python scanner.py sample_assets.json
+      - name: App tests
+        working-directory: claude-enterprise-app
+        run: pytest tests -v
+      - name: Red-team harness
+        working-directory: claude-enterprise-app
+        run: python redteam/run_redteam.py
+
+  ml:
+    name: Adversarial ML lab + interpretability pipeline tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (CPU-only PyTorch)
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r adversarial-ml-lab/requirements.txt -r interp-probe/requirements.txt
+      - name: Adversarial ML lab tests
+        working-directory: adversarial-ml-lab
+        run: pytest tests -v
+      - name: Interpretability pipeline tests (tiny model, offline)
+        working-directory: interp-probe
+        run: pytest tests -v
+
+  sast-sca-secrets:
+    name: SAST, dependency audit, secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install tools
+        run: pip install bandit pip-audit semgrep
+      - name: SAST - Bandit (fails on medium or high severity)
+        run: bandit -r ai-exposure-scanner claude-enterprise-app adversarial-ml-lab interp-probe -x '*/tests/*' -ll
+      - name: SAST - Semgrep (report only)
+        run: semgrep scan --config p/python --config p/flask --metrics=off --exclude '*/tests/*' || true
+      - name: SCA - pip-audit (fails on any known vulnerability)
+        run: |
+          pip-audit -r claude-enterprise-app/requirements-dev.txt
+          pip-audit -r ai-exposure-scanner/requirements.txt
+      - name: Secrets - Gitleaks
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
+            dir /repo --config /repo/security/gitleaks.toml --redact --no-banner -v
+
+  container-dast:
+    name: Docker build, image scan, DAST
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t claude-enterprise-app:ci claude-enterprise-app
+      - name: Image scan - Trivy (fails on fixable CRITICAL)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+            aquasec/trivy:0.58.1 image --severity CRITICAL --ignore-unfixed \
+            --exit-code 1 --no-progress claude-enterprise-app:ci
+      - name: Run container
+        run: |
+          docker run -d --name app -p 8000:8000 \
+            -e SECRET_KEY="$(openssl rand -hex 32)" \
+            -e TOKENIZATION_KEY="$(python3 -c 'import base64,os;print(base64.urlsafe_b64encode(os.urandom(32)).decode())')" \
+            -e DEMO_ANALYST_PASSWORD="$(openssl rand -hex 12)" \
+            claude-enterprise-app:ci
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/health && break; sleep 1; done
+          test "$(docker inspect -f '{{.Config.User}}' app)" = "10001:10001"
+          curl -si http://localhost:8000/health | grep -i "x-content-type-options: nosniff"
+      - name: DAST - OWASP ZAP baseline (report only)
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: http://localhost:8000/health
+          rules_file_name: security/zap-rules.tsv
+          allow_issue_writing: false
+          fail_action: false
+      - name: Container logs
+        if: always()
+        run: docker logs app || true

@@ -1,0 +1,179 @@
+{
+  "CRITICAL": [
+    {
+      "asset": "Customer Risk Prediction Model",
+      "issue": "Credential Exposure",
+      "remediation": "Rotate the credential, then load it at runtime from a secrets manager (e.g. AWS Secrets Manager, HashiCorp Vault) instead of configuration.",
+      "cwe": "CWE-798"
+    },
+    {
+      "asset": "Customer Risk Prediction Model",
+      "issue": "Credential Exposure",
+      "remediation": "Rotate the credential, then load it at runtime from a secrets manager (e.g. AWS Secrets Manager, HashiCorp Vault) instead of configuration.",
+      "cwe": "CWE-798"
+    },
+    {
+      "asset": "POST /api/v1/score",
+      "issue": "Missing Authentication",
+      "remediation": "Require authentication (OAuth 2.0 / OIDC, mTLS, or rotated API keys).",
+      "cwe": "CWE-306"
+    },
+    {
+      "asset": "POST /api/v1/score",
+      "issue": "Unencrypted Communication",
+      "remediation": "Serve over HTTPS with TLS 1.2+ and redirect or refuse plaintext HTTP.",
+      "cwe": "CWE-319"
+    },
+    {
+      "asset": "Customer Data Warehouse",
+      "issue": "Credential Exposure",
+      "remediation": "Rotate the credential, then load it at runtime from a secrets manager (e.g. AWS Secrets Manager, HashiCorp Vault) instead of configuration.",
+      "cwe": "CWE-798"
+    },
+    {
+      "asset": "Embeddings Store",
+      "issue": "Credential Exposure",
+      "remediation": "Rotate the credential, then load it at runtime from a secrets manager (e.g. AWS Secrets Manager, HashiCorp Vault) instead of configuration.",
+      "cwe": "CWE-798"
+    },
+    {
+      "asset": "Model Artifacts S3",
+      "issue": "Public Exposure",
+      "remediation": "Block public access and grant read access only to specific principals.",
+      "cwe": "CWE-732"
+    }
+  ],
+  "HIGH": [
+    {
+      "asset": "Customer Risk Prediction Model",
+      "issue": "Missing Input Validation",
+      "remediation": "Validate type, schema, size, and ranges before inference; isolate untrusted text from instructions.",
+      "cwe": "CWE-20"
+    },
+    {
+      "asset": "Role: ml-pipeline-role",
+      "issue": "Excessive Permissions",
+      "remediation": "Apply least privilege: enumerate only required actions (e.g. s3:GetObject).",
+      "cwe": "CWE-250"
+    },
+    {
+      "asset": "Role: ml-pipeline-role",
+      "issue": "Excessive Permissions",
+      "remediation": "Scope resources to specific ARNs (e.g. arn:aws:s3:::my-bucket/*).",
+      "cwe": "CWE-732"
+    },
+    {
+      "asset": "requests==2.25.0",
+      "issue": "Vulnerable Package",
+      "remediation": "Upgrade requests to >= 2.31.0 (or latest) and review CVE-2023-32681.",
+      "cwe": "CWE-1395"
+    },
+    {
+      "asset": "flask==1.1.2",
+      "issue": "Vulnerable Package",
+      "remediation": "Upgrade flask to >= 2.2.5 (or latest) and review CVE-2023-30861.",
+      "cwe": "CWE-1395"
+    },
+    {
+      "asset": "django==2.2.0",
+      "issue": "Vulnerable Package",
+      "remediation": "Upgrade django to >= 2.2.4 (or latest) and review CVE-2019-14232.",
+      "cwe": "CWE-1395"
+    },
+    {
+      "asset": "Customer Data Warehouse",
+      "issue": "Missing Encryption at Rest",
+      "remediation": "Enable encryption at rest with a managed KMS key.",
+      "cwe": "CWE-311"
+    },
+    {
+      "asset": "Model Artifacts S3",
+      "issue": "Missing Encryption at Rest",
+      "remediation": "Enable encryption at rest with a managed KMS key.",
+      "cwe": "CWE-311"
+    },
+    {
+      "asset": "Risk Model SageMaker Endpoint",
+      "issue": "Sensitive Data Capture",
+      "remediation": "Set DataCaptureConfig.KmsKeyId, restrict the S3 prefix, and set a retention policy.",
+      "cwe": "CWE-312"
+    },
+    {
+      "asset": "Data Science Notebook",
+      "issue": "Direct Internet Access",
+      "remediation": "Set DirectInternetAccess=Disabled and route egress through the VPC.",
+      "cwe": "CWE-668"
+    }
+  ],
+  "MEDIUM": [
+    {
+      "asset": "Customer Risk Prediction Model",
+      "issue": "No Model Versioning",
+      "remediation": "Track models in a registry (e.g. MLflow) with immutable versions and artifact hashes.",
+      "cwe": "N/A (governance control)"
+    },
+    {
+      "asset": "Customer Risk Prediction Model",
+      "issue": "No Performance Monitoring",
+      "remediation": "Monitor accuracy/drift and alert on threshold breaches.",
+      "cwe": "CWE-778"
+    },
+    {
+      "asset": "POST /api/v1/score",
+      "issue": "Denial of Service Risk",
+      "remediation": "Enforce per-client rate limits at the gateway or application.",
+      "cwe": "CWE-770"
+    },
+    {
+      "asset": "POST /api/v1/score",
+      "issue": "Missing Audit Logging",
+      "remediation": "Enable request/audit logging with PII masking and central retention.",
+      "cwe": "CWE-778"
+    },
+    {
+      "asset": "Role: ml-pipeline-role",
+      "issue": "Missing Authentication Control",
+      "remediation": "Require MFA via policy condition aws:MultiFactorAuthPresent=true for human-assumable roles.",
+      "cwe": "CWE-308"
+    },
+    {
+      "asset": "Customer Data Warehouse",
+      "issue": "Missing Audit Logging",
+      "remediation": "Enable access logging and ship logs to central storage.",
+      "cwe": "CWE-778"
+    },
+    {
+      "asset": "Model Artifacts S3",
+      "issue": "No Object Versioning",
+      "remediation": "Enable versioning and integrity checks (hash/signature) for model artifacts.",
+      "cwe": "CWE-494"
+    },
+    {
+      "asset": "Risk Model SageMaker Endpoint",
+      "issue": "Missing Encryption at Rest",
+      "remediation": "Set KmsKeyId on the EndpointConfig.",
+      "cwe": "CWE-311"
+    },
+    {
+      "asset": "Risk Model SageMaker Endpoint",
+      "issue": "No Network Isolation",
+      "remediation": "Set EnableNetworkIsolation=true on the Model.",
+      "cwe": "CWE-668"
+    },
+    {
+      "asset": "Data Science Notebook",
+      "issue": "Root Access Enabled",
+      "remediation": "Set RootAccess=Disabled.",
+      "cwe": "CWE-250"
+    }
+  ],
+  "LOW": [
+    {
+      "asset": "Risk Model SageMaker Endpoint",
+      "issue": "Not VPC-Attached",
+      "remediation": "Provide VpcConfig with private subnets and restrictive security groups.",
+      "cwe": "CWE-668"
+    }
+  ],
+  "INFO": []
+}

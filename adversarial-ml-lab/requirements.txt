@@ -1,0 +1,7 @@
+torch>=2.4
+numpy>=1.26
+scikit-learn>=1.5
+captum>=0.7
+opacus>=1.5
+matplotlib>=3.8
+pytest>=9.0.3,<10
