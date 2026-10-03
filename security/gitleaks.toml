@@ -12,6 +12,7 @@ paths = [
   '''ai-exposure-scanner/sample_assets\.json''',
   '''ai-exposure-scanner/findings\.csv''',
   '''ai-exposure-scanner/tests/''',
+  '''ai-exposure-scanner/sample_claude_fleet/''',
   '''claude-enterprise-app/tests/''',
   '''claude-enterprise-app/redteam/''',
 ]

@@ -28,25 +28,6 @@ jobs:
         working-directory: claude-enterprise-app
         run: python redteam/run_redteam.py
 
-  ml:
-    name: Adversarial ML lab + interpretability pipeline tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install (CPU-only PyTorch)
-        run: |
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -r adversarial-ml-lab/requirements.txt -r interp-probe/requirements.txt
-      - name: Adversarial ML lab tests
-        working-directory: adversarial-ml-lab
-        run: pytest tests -v
-      - name: Interpretability pipeline tests (tiny model, offline)
-        working-directory: interp-probe
-        run: pytest tests -v
-
   sast-sca-secrets:
     name: SAST, dependency audit, secret scan
     runs-on: ubuntu-latest
@@ -58,7 +39,7 @@ jobs:
       - name: Install tools
         run: pip install bandit pip-audit semgrep
       - name: SAST - Bandit (fails on medium or high severity)
-        run: bandit -r ai-exposure-scanner claude-enterprise-app adversarial-ml-lab interp-probe -x '*/tests/*' -ll
+        run: bandit -r ai-exposure-scanner claude-enterprise-app -x '*/tests/*' -ll
       - name: SAST - Semgrep (report only)
         run: semgrep scan --config p/python --config p/flask --metrics=off --exclude '*/tests/*' || true
       - name: SCA - pip-audit (fails on any known vulnerability)

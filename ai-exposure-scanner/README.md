@@ -24,6 +24,41 @@ The dependency table has three entries (requests / CVE-2023-32681, Flask / CVE-2
 Django / CVE-2019-14232) and exists only to show the version-comparison logic. For real dependency
 scanning, use pip-audit, OSV-Scanner, or Dependabot.
 
+## Claude fleet auditor (`claude_audit.py`)
+
+A second tool in this folder, built for the [Enterprise Claude rollout](../enterprise-claude-rollout/).
+It audits Claude Code configuration across repositories and developer home directories, and lints
+the managed policy file. Standard library only.
+
+| Check | Looks for | Severity |
+|-------|-----------|----------|
+| `CC01` | `defaultMode: bypassPermissions` | HIGH (user), LOW (project) |
+| `CC02` | `enableAllProjectMcpServers: true` | HIGH |
+| `CC03` | Broad `allow` rules (`Bash`, `WebFetch`, `Bash(curl *)` …) | HIGH / MEDIUM |
+| `CC04` | Hooks: HTTP hooks, repo-supplied command hooks | HIGH / MEDIUM |
+| `CC05` | Plugin marketplace not in `strictKnownMarketplaces` | HIGH |
+| `CC06` | Sandbox disabled or unsandboxed retries allowed | MEDIUM |
+| `MC01` | MCP server not on the policy allowlist (matched by URL or exact command, never by name) | HIGH (local) / MEDIUM (remote) |
+| `MC02` | Remote MCP server over plain HTTP | HIGH |
+| `MC03` | Unpinned `npx` / `uvx` / `bunx` / `pipx` package | MEDIUM |
+| `SC01` | Secrets in `CLAUDE.md`, settings or MCP config (masked in output) | CRITICAL |
+| `SC02` | `.env` or `secrets/` present with no `Read` deny rule | MEDIUM |
+| `IN01` | Injection patterns in `CLAUDE.md`: pipe-to-shell, instruction override, concealment, credential reads | HIGH |
+
+```bash
+python claude_audit.py fleet --manifest sample_claude_fleet/fleet.json \
+    --policy ../enterprise-claude-rollout/policy/managed-settings.general.json \
+    --out sample_claude_fleet/audit_output
+python claude_audit.py lint ../enterprise-claude-rollout/policy/managed-settings.pilot.json --profile strict
+```
+
+For real use, point `--repos` and `--homes` at directories. The sample fleet (4 repos, 2 home directories,
+all fictional) is stored as one manifest, [`fleet.json`](./sample_claude_fleet/fleet.json), because Claude
+configuration lives in dotfiles. On it: **20 findings, 1 critical, 11 high,
+8 medium**, and none on the two control cases. `lint` exits 1 when the policy has HIGH gaps, so it can
+gate a policy change in CI. See the [rollout README](../enterprise-claude-rollout/README.md#fleet-audit-results-sample-fleet)
+for what the findings mean.
+
 ## Run it
 
 ```bash
@@ -62,7 +97,7 @@ The three control cases matter: they show the scanner doesn't flag everything. T
 
 ## Tests
 
-35 tests (`pytest tests -v`):
+66 tests (`pytest tests -v`): 35 for the asset scanner, 31 for the Claude fleet auditor (`test_claude_audit.py`).
 
 | Class | Tests | Covers |
 |-------|-------|--------|
@@ -75,6 +110,7 @@ The three control cases matter: they show the scanner doesn't flag everything. T
 | `TestAIExposureScanner` | 5 | Load, scan, ordering, CSV and JSON export |
 | `TestSampleInventory` | 1 | End-to-end assertions on the shipped inventory |
 | `TestAWSAIServiceAnalyzer` | 5 | Insecure and hardened SageMaker endpoint, notebook, Bedrock |
+| `test_claude_audit.py` | 31 | Each fleet check, allowlist matching and version pinning, the sample fleet end to end (including clean controls), manifest path-traversal guard, policy lint profiles, CLI exit codes |
 
 ## Limitations
 

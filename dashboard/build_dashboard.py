@@ -32,8 +32,6 @@ SOURCES = {
     "assets": "ai-exposure-scanner/findings.csv",
     "inventory": "ai-exposure-scanner/sample_assets.json",
     "redteam": "claude-enterprise-app/redteam/results.json",
-    "interp": "interp-probe/results/results.json",
-    "lab": "adversarial-ml-lab/results/results.json",
     "owasp": "owasp-llm-top10-comparison.md",
     "policy_general": "enterprise-claude-rollout/policy/managed-settings.general.json",
     "policy_pilot": "enterprise-claude-rollout/policy/managed-settings.pilot.json",
@@ -83,8 +81,6 @@ def load_data() -> dict:
         asset_rows = list(csv.DictReader(fh))
     inventory = _json(SOURCES["inventory"])["assets"]
     redteam = _json(SOURCES["redteam"])
-    interp = _json(SOURCES["interp"])
-    lab = _json(SOURCES["lab"])
 
     # OWASP coverage: parse the status column of the comparison table.
     owasp = []
@@ -119,10 +115,6 @@ def load_data() -> dict:
             g["where"].append(unit)
     actions = sorted(grouped.values(), key=lambda g: (SEVERITIES.index(g["severity"]), -len(g["where"])))
 
-    ev = next(e for e in lab["evasion"]["by_eps"] if abs(e["eps"] - 0.1) < 1e-9)
-    pois = lab["poisoning"]
-    probe = interp["probe_at_selected_layer"]
-
     return {
         "fleet_summary": fleet["summary"],
         "fleet_inventory": fleet["inventory"],
@@ -136,23 +128,6 @@ def load_data() -> dict:
         "redteam": redteam,
         "owasp": owasp,
         "lint": lint,
-        "interp": {
-            "regex_tpr": interp["regex_baseline"]["test_unseen"]["tpr"],
-            "probe_tpr": probe["unseen_tpr"],
-            "probe_fpr": probe["unseen_fpr"],
-            "layer": probe["layer"],
-            "n_unseen": interp["sizes"]["test_unseen"],
-            "model": interp["model"],
-        },
-        "lab": {
-            "eps": ev["eps"],
-            "pgd_standard": ev["standard_pgd"],
-            "pgd_adv": ev["adv_trained_pgd"],
-            "asr_backdoor": pois["backdoored"]["asr"],
-            "asr_after": pois["after_unlearning"]["asr"],
-            "clean_backdoor": pois["backdoored"]["clean_acc"],
-            "clean_after": pois["after_unlearning"]["clean_acc"],
-        },
     }
 
 
@@ -305,57 +280,6 @@ def redteam_panel(d) -> str:
                  body, SOURCES["redteam"])
 
 
-def interp_panel(d) -> str:
-    i = d["interp"]
-    items = [("Keyword filter", "regex on known phrasings", i["regex_tpr"], "Keyword filter · caught", None),
-             ("Activation probe", f"{i['model'].upper()} layer {i['layer']}, chosen on validation", i["probe_tpr"],
-              f"Activation probe · caught (false positives {pct(i['probe_fpr'])})", None)]
-    body = hbars(items, 1.0, "--series-1", label_w=220, row_h=42, value_fmt=pct)
-    body += (f'<p class="note">The probe flags {pct(i["probe_fpr"])} of benign prompts. Neither is good enough to rely on, '
-             "which is why the rollout limits what an injected instruction can do instead of trying to filter it.</p>")
-    body += table(["Detector", "Reworded injections caught", "False-positive rate"],
-                  [("Keyword filter", pct(i["regex_tpr"]), "0%"), ("Activation probe", pct(i["probe_tpr"]), pct(i["probe_fpr"]))])
-    return panel("Filters miss reworded prompt injections",
-                 f"Share of injections caught on a held-out set of unseen phrasings ({i['n_unseen']} prompts)",
-                 body, SOURCES["interp"])
-
-
-def lab_panel(d) -> str:
-    L = d["lab"]
-    rows = [
-        ("Accuracy under attack", f"PGD, ε = {L['eps']} · higher is better", L["pgd_standard"], L["pgd_adv"],
-         "standard model", "adversarially trained"),
-        ("Backdoor attack success", "lower is better", L["asr_backdoor"], L["asr_after"], "backdoored", "after unlearning"),
-        ("Clean accuracy", "the cost of unlearning", L["clean_backdoor"], L["clean_after"], "backdoored", "after unlearning"),
-    ]
-    width, label_w, row_h = 520, 215, 50
-    plot_w = width - label_w - 30
-    h = len(rows) * row_h + 22
-    out = [f'<svg class="chart" viewBox="0 0 {width} {h}" width="100%" role="img">']
-    for k in (0, 0.5, 1.0):
-        x = label_w + k * plot_w
-        out.append(f'<line x1="{x}" y1="0" x2="{x}" y2="{h - 18}" class="grid"/>'
-                   f'<text x="{x}" y="{h - 4}" class="tick" text-anchor="middle">{pct(k)}</text>')
-    for i, (label, sub, a, b, la, lb) in enumerate(rows):
-        cy = i * row_h + 18
-        xa, xb = label_w + a * plot_w, label_w + b * plot_w
-        out.append(f'<text x="0" y="{cy - 1}" class="lbl">{escape(label)}</text>'
-                   f'<text x="0" y="{cy + 13}" class="sub">{escape(sub)}</text>'
-                   f'<line x1="{xa}" y1="{cy}" x2="{xb}" y2="{cy}" class="conn"/>')
-        for x, v, lab_, var in ((xa, a, la, "--before"), (xb, b, lb, "--after")):
-            above = (x == xa) == (xa < xb)
-            out.append(f'<g class="hit" {tip(pct(v), label + " · " + lab_)}>'
-                       f'<circle cx="{x}" cy="{cy}" r="12" fill="transparent"/>'
-                       f'<circle cx="{x}" cy="{cy}" r="6" fill="var({var})" class="dot"/></g>'
-                       f'<text x="{x}" y="{cy + (-11 if above else 20)}" class="val" text-anchor="middle">{pct(v)}</text>')
-    out.append("</svg>")
-    legend = ('<div class="legend"><span><i class="sw round" style="background:var(--before)"></i>Before the defense</span>'
-              '<span><i class="sw round" style="background:var(--after)"></i>After the defense</span></div>')
-    body = legend + "".join(out) + table(["Measure", "Before", "After"], [(r[0], pct(r[2]), pct(r[3])) for r in rows])
-    return panel("Adversarial ML defenses, measured", "Small image classifier in the lab; each row is one attack and its defense",
-                 body, SOURCES["lab"])
-
-
 def owasp_panel(d) -> str:
     fill = {"Tested": "--ord-3", "Implemented": "--ord-2", "Documented": "--ord-1", "Gap": "--surface-1"}
     ink = {"Tested": "--on-ord-3", "Implemented": "--on-ord-2", "Documented": "--on-ord-1", "Gap": "--text-secondary"}
@@ -499,8 +423,6 @@ def render(d: dict) -> str:
 {severity_panel(d)}
 {redteam_panel(d)}
 {owasp_panel(d)}
-{interp_panel(d)}
-{lab_panel(d)}
 {actions_panel(d)}
 </div>
 <footer>Generated by <code>dashboard/build_dashboard.py</code> from: {escape(files)}. Policy lint results are computed by

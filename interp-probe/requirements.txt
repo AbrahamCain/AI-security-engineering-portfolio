@@ -1,8 +1,0 @@
-torch>=2.4
-transformer_lens>=2.16,<3
-numpy>=1.26
-scikit-learn>=1.5
-matplotlib>=3.8
-Flask>=3.1,<4
-cryptography>=44,<60
-pytest>=9.0.3,<10

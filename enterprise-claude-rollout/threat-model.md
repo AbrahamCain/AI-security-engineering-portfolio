@@ -38,5 +38,5 @@ and it reads untrusted content (documents, email, repos, web pages, tool output)
 
 ## What is deliberately not controlled
 
-- **Prompt content isn't blocked by keyword filters.** The portfolio's own red team and interpretability results show filters miss paraphrases (0% caught on reworded attacks). Effort goes into limiting what an injected instruction can do.
+- **Prompt content isn't blocked by keyword filters.** The portfolio's own red team shows filters miss paraphrases (case PI-5). Effort goes into limiting what an injected instruction can do.
 - **Users can still paste data they shouldn't.** Policy, training and after-the-fact review cover this. A DLP inline block is a Phase 4 option once false-positive rates are known.

@@ -2,29 +2,26 @@
 
 # AI Security Engineering Portfolio
 
-Abraham Cain · Product security engineer (CISSP) applying
-offensive-security and AppSec practice to AI/ML systems: secure enterprise AI rollout, adversarial ML,
-interpretability, LLM red teaming, threat modeling, DevSecOps and AI governance.
+Abraham Cain · Product security engineer (CISSP; SANS AI security training) applying
+offensive-security and AppSec practice to AI/ML systems: secure enterprise AI rollout, LLM application
+security, LLM red teaming, threat modeling, DevSecOps and AI governance.
 
-[![AI security posture dashboard: 20 Claude fleet findings, 2 of 2 managed policies passing lint, 24 of 25 red-team cases passed, 8 of 10 OWASP LLM risks with evidence](./dashboard/dashboard_summary.png)](./dashboard/)
+[![AI security posture dashboard: 20 Claude fleet findings, 2 of 2 managed policies passing lint, 24 of 25 red-team cases passed, 7 of 10 OWASP LLM risks with evidence](./dashboard/dashboard_summary.png)](./dashboard/)
 
 <sub>Generated from this repo's result files by [`dashboard/build_dashboard.py`](./dashboard/). [Full dashboard →](./dashboard/)</sub>
 
-## Start here: four results in three minutes
+## Start here: three results in three minutes
 
 1. **Rolling out Claude across a company without losing control of it.** A phased plan from a
    30-person pilot to 4,000 employees, the actual Claude Code managed policy that enforces it, and a
    fleet auditor that found a cloned repo hiding instructions to read AWS credentials, plus 19 other
    exposures, in a sample fleet. → [Enterprise Claude rollout](./enterprise-claude-rollout/)
-2. **Detecting prompt injection from inside the model.** A keyword filter caught **0%** of reworded
-   injections. A probe on GPT-2's internal activations, trained only on textbook phrasings, caught
-   **55%** (8.3% false positives). The write-up also reports the experiment that failed and why.
-   → [Interpretability probe](./interp-probe/)
-3. **A backdoor that accuracy monitoring can't see.** Poisoning 5% of training data produced a trigger
-   that worked 98% of the time while clean accuracy stayed at 96%. Neural Cleanse identified the
-   targeted class, and unlearning cut the attack to 5.6%, at a measured cost of 11 points of accuracy.
-   → [Adversarial ML lab](./adversarial-ml-lab/)
-4. **The top risk was a design decision, not an exploit.** The risk assessment ranks "an LLM is making
+2. **A secure Claude app, attacked on purpose.** A Flask service on the Claude API with signed tokens, roles,
+   PII tokenization and an audit log, then a 25-case scripted red team against it: 24 pass, and the one
+   bypass (a reworded prompt injection) is documented, not hidden. The design limits the damage instead
+   of trusting a filter: the model has no tools, no secrets, and its output is untrusted.
+   → [Secure Claude app](./claude-enterprise-app/) · [Red-team assessment](./ai-red-team-assessment.md)
+3. **The top risk was a design decision, not an exploit.** The risk assessment ranks "an LLM is making
    credit decisions" above any attack: it creates fairness, explainability and adverse-action problems,
    and is high-risk under the EU AI Act. → [Risk assessment](./nist-ai-risk-assessment.md) ·
    [Executive briefing](./executive-briefing.md)
@@ -44,8 +41,6 @@ design decision.
 | Project | What it is | Evidence |
 |---------|-----------|----------|
 | [Enterprise Claude Rollout](./enterprise-claude-rollout/) | Phased rollout plan, organization-wide threat model, data handling policy, Claude Code managed policies (pilot and general), monitoring and detections, agentic red-team plan, and a fleet auditor plus policy linter | 31 auditor tests; 20 findings in the sample fleet with 0 false positives on the control cases; both policies pass lint |
-| [Adversarial ML Lab](./adversarial-ml-lab/) | PyTorch: evasion (FGSM/PGD), backdoor poisoning, membership inference, model inversion, each measured against a defense (adversarial training, Neural Cleanse, DP-SGD via Opacus). Captum for trigger attribution | 8 tests; PGD drops accuracy 96.6% → 35.6%, adversarial training restores 76.2%; 5% poisoning → 98% backdoor success, cut to 5.6% |
-| [Interpretability Probe](./interp-probe/) | TransformerLens on GPT-2: residual-stream probes for prompt injection, attention-head analysis, activation steering and directional ablation, compared against a keyword filter on paraphrased injections | On paraphrased injections the keyword filter catches 0%; the probe catches 55% (8.3% false positives), with mid layers generalizing best. Ablation result reported honestly as negative |
 | [Secure Claude Enterprise App](./claude-enterprise-app/) | Flask + Claude API behind signed tokens, RBAC, rate limits, PII tokenization, output encoding, security headers and an audit log; hardened Docker image | 56 tests |
 | [AI Red-Team Assessment](./ai-red-team-assessment.md) | Scripted attack harness against the app, plus eight defects found in its first version and fixed | 25 cases: 24 pass, 1 documented limitation |
 | [AI Exposure Scanner](./ai-exposure-scanner/) | Python scanner for an AI asset inventory: credentials, IAM, APIs, storage, dependencies, model governance, SageMaker and Bedrock, plus the Claude fleet auditor | 66 tests; 28 findings across 11 assets |
@@ -70,13 +65,9 @@ Risk assessment ──► what could go wrong (NIST AI RMF, EU AI Act)
         │
 Exposure scanner ──► finding it in configuration (incl. SageMaker / Bedrock)
         │
-Adversarial ML lab ──► attacking the model itself, and measuring defenses
-        │
 Secure app ──► building controls around an LLM
         │
 Red team ──► attacking those controls, reproducibly
-        │
-Interpretability probe ──► detecting what the red team's filter missed, from inside the model
         │
 Threat model + OWASP coverage ──► what remains, prioritized
         │
@@ -95,24 +86,18 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r ai-exposure-scanner/requirements.txt -r claude-enterprise-app/requirements-dev.txt
 (cd ai-exposure-scanner && pytest tests -q && python scanner.py sample_assets.json)
 (cd claude-enterprise-app && pytest tests -q && python redteam/run_redteam.py)
-
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-pip install -r adversarial-ml-lab/requirements.txt -r interp-probe/requirements.txt
-(cd adversarial-ml-lab && pytest tests -q && python run_all.py)
-(cd interp-probe && pytest tests -q && python run_probe.py)    # downloads GPT-2 small
 ```
 
 Python 3.10+. The red-team harness's model-layer probes need `ANTHROPIC_API_KEY` and `--live`.
 
 ## What this shows, and what it doesn't
 
-**Shows:** working attacks and measured defenses at the model level (adversarial ML, interpretability)
-and the application level (red team); an organization-wide Claude rollout enforced as policy code and
+**Shows:** working attacks and measured defenses at the application level (red team); an organization-wide Claude rollout enforced as policy code and
 checked by a tested fleet auditor; security engineering practice (threat modeling, SAST/SCA/DAST,
 container hardening, data protection); and governance fluency (NIST AI RMF, OWASP LLM Top 10, EU AI Act).
 Limitations are stated next to results rather than left out.
 
-**Doesn't show:** production scale. The models are small on purpose so that everything reruns in CI.
+**Doesn't show:** production scale, or model-level work such as adversarial ML and interpretability.
 The app's rate limits are in memory and its audit log is local. The rollout's managed policy is linted
 but hasn't run on a real fleet, and its agentic red-team plan is written, not executed. Live tests
 against the Claude model, that red-team run, and RAG security (OWASP LLM08) are the next steps, as listed in the
@@ -123,12 +108,10 @@ against the Claude model, that red-team run, and RAG security (OWASP LLM08) are 
 ```
 ├── enterprise-claude-rollout/ plan, threat model, data policy, policy/ (managed settings), monitoring, red-team plan
 ├── dashboard/                build_dashboard.py, dashboard.html, dashboard.png (generated from result files)
-├── adversarial-ml-lab/       lab.py, run_all.py, results/, tests/
-├── interp-probe/             dataset.py, probe.py, run_probe.py, results/, tests/
 ├── claude-enterprise-app/    app.py, Dockerfile, redteam/, tests/
 ├── ai-exposure-scanner/      scanner.py, claude_audit.py, sample_assets.json, sample_claude_fleet/, tests/
 ├── security/                 pipeline docs, gitleaks and ZAP config
-├── .github/workflows/        tests.yml (ci), interp-probe.yml
+├── .github/workflows/        tests.yml (ci)
 └── *.md                      assessments, threat model, governance, briefing
 ```
 
@@ -138,5 +121,4 @@ against the Claude model, that red-team run, and RAG security (OWASP LLM08) are 
 [OWASP Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top-10/) ·
 [EU AI Act](https://eur-lex.europa.eu/eli/reg/2024/1689/oj) ·
 [MITRE ATLAS](https://atlas.mitre.org/) · [MITRE CWE](https://cwe.mitre.org/) ·
-[TransformerLens](https://github.com/TransformerLensOrg/TransformerLens) ·
 [Model Context Protocol](https://modelcontextprotocol.io/)

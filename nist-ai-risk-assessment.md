@@ -45,11 +45,11 @@ the risk or the control.
 
 | ID | Risk | ATLAS / OWASP | L | I | Inherent | Residual | Owner | Evidence in this portfolio |
 |----|------|---------------|---|---|----------|----------|-------|----------------------------|
-| R1 | Prompt injection through customer-supplied text | AML.T0051 · LLM01 | H | H | **Critical** | Medium | AppSec | [Red team](./ai-red-team-assessment.md) PI-1…PI-6; [interp probe](./interp-probe/) |
-| R2 | Training-data leakage through the scoring API (membership inference, inversion) | AML.T0024.000/.001 · LLM02 | M | H | High | Medium (decision needed) | ML Platform | [Adversarial ML lab](./adversarial-ml-lab/) §3–4 |
+| R1 | Prompt injection through customer-supplied text | AML.T0051 · LLM01 | H | H | **Critical** | Medium | AppSec | [Red team](./ai-red-team-assessment.md) PI-1…PI-6 |
+| R2 | Training-data leakage through the scoring API (membership inference, inversion) | AML.T0024.000/.001 · LLM02 | M | H | High | Medium (decision needed) | ML Platform | Not tested in this portfolio (documented only) |
 | R3 | LLM API keys and cloud credentials exposed | AML.T0055 · — | H | H | High | Low | Platform | [Scanner](./ai-exposure-scanner/) CWE-798 findings; Gitleaks in CI |
 | R4 | Customer PII in plaintext logs and monitoring | AML.T0057 · LLM02 | M | H | **Critical** | Low | Data Eng. | App audit log stores counts only; tokenization |
-| R5 | Compromised or backdoored third-party model | AML.T0010, AML.T0020 · LLM03/LLM04 | L | H | **Critical** | Medium | ML Platform | Lab §2 (backdoor + Neural Cleanse); scanner artifact-bucket checks |
+| R5 | Compromised or backdoored third-party model | AML.T0010, AML.T0020 · LLM03/LLM04 | L | H | **Critical** | Medium | ML Platform | Scanner artifact-bucket checks; the model-level backdoor risk itself is documented, not tested |
 | R6 | Silent model degradation (drift) driving bad credit decisions | — · LLM09 | H | M | High | Low | Credit Risk | Scanner monitoring checks |
 | R7 | Stolen data-scientist credentials used to exfiltrate data and models | AML.T0012 · — | M | H | High | Medium | Security Ops | Scanner IAM wildcard and MFA checks |
 | R8 | LLM used for credit decisions: unfair, unexplainable outcomes | — · LLM09 | H | H | High (governance) | Medium | CRO + Legal | [EU AI Act assessment](./eu-ai-act-assessment.md) |
@@ -68,8 +68,8 @@ Keyword filters are a speed bump: the red team bypassed one with a single paraph
 *Residual: Medium,* because model-level resistance is not yet measured.
 
 **R2: Training-data leakage.** An attacker probes the scoring API to learn whether a person was in
-the training data. In the lab, a memorizing model leaked membership (attack AUC 0.65). DP-SGD reduced
-leakage to near chance (0.54), but only at ε≈4, which cut accuracy from 90% to 29% on small data.
+the training data. Models that memorize their training data can leak membership; formal privacy
+methods such as DP-SGD reduce this at a cost in accuracy. This portfolio does not measure it.
 - Coarsen outputs to a score band, with no raw confidences.
 - Set per-client query budgets.
 - Monitor for systematic probing.
@@ -93,8 +93,8 @@ leakage to near chance (0.54), but only at ε≈4, which cut accuracy from 90% t
 
 *Residual: Low.* This is the quickest critical fix.
 
-**R5: Model supply chain.** A backdoored upstream model can behave normally on all standard tests. The
-lab's backdoor kept clean accuracy at 96% while firing 98% of the time.
+**R5: Model supply chain.** A backdoored upstream model can behave normally on all standard tests,
+so accuracy monitoring alone will not reveal it. This risk is documented here, not tested.
 - Use an approved model registry, with pinned versions and artifact hashes.
 - Prefer safetensors over pickle.
 - Scan downloaded models (ModelScan).

@@ -29,31 +29,31 @@ It is a portfolio exercise, not legal advice.
 | Obligation | Article | Current state | Gap / action |
 |------------|---------|---------------|--------------|
 | Risk management system | 9 | NIST AI RMF assessment, threat model | Make it a maintained process with owners and review dates, not a one-time document |
-| Data and data governance | 10 | Poisoning analysis (lab), PII tokenization | Bias examination of training data across protected groups; data-provenance records |
+| Data and data governance | 10 | PII tokenization | Bias examination of training data across protected groups; data-provenance records |
 | Technical documentation | 11, Annex IV | Partial (READMEs, threat model) | Annex IV structure: intended purpose, architecture, data, metrics, oversight measures |
 | Record-keeping (logs) | 12 | App audit log | Automatic logging of each scoring decision, retained for the system's lifetime as required, append-only (threat model T2) |
 | Transparency to deployers | 13 | — | Instructions for use, including accuracy metrics and known limitations |
 | Human oversight | 14 | — | Analysts can override scores; adverse decisions are reviewed; a "stop" capability |
-| Accuracy, robustness, cybersecurity | 15 | **Strongest area:** adversarial robustness (lab), poisoning defense, prompt-injection testing, rate limiting, DevSecOps pipeline | Declare accuracy metrics; resilience testing in the release process |
+| Accuracy, robustness, cybersecurity | 15 | **Strongest area:** prompt-injection testing, rate limiting, DevSecOps pipeline | Declare accuracy metrics; model-level robustness testing (adversarial examples, poisoning) is not covered here; resilience testing in the release process |
 | Quality management system | 17 | CI quality gates | Documented QMS policies and procedures |
 | Conformity assessment | 43 | — | Internal control (Annex VI) is the route for Annex III point 5 systems |
 | EU database registration | 49 | — | Register before putting into service |
 | Post-market monitoring | 72 | Scanner monitoring checks | A monitoring plan feeding back into risk management |
 | Serious incident reporting | 73 | — | Incident playbook with regulator notification timelines |
 | Fundamental rights impact assessment | 27 | — | **Required for deployers of Annex III 5(b) systems.** Complete it before first use |
-| Right to explanation | 86 | — | Affected persons can request an explanation of decisions. Feature attribution (Captum, as in the lab) can support this |
+| Right to explanation | 86 | — | Affected persons can request an explanation of decisions. Feature attribution tooling can support this |
 
 ## 4. How the security work maps
 
 Article 15 requires high-risk systems to be resilient against attempts to exploit vulnerabilities,
 naming data poisoning, model poisoning, adversarial examples and model evasion, and confidentiality
-attacks. Each has a measured result in this portfolio:
+attacks. This portfolio covers the application layer and does not include model-level testing:
 
 | Article 15 threat | Portfolio evidence |
 |-------------------|--------------------|
-| Data poisoning | Backdoor attack and Neural Cleanse defense ([lab](./adversarial-ml-lab/)) |
-| Adversarial examples / model evasion | FGSM/PGD and adversarial training ([lab](./adversarial-ml-lab/)) |
-| Confidentiality attacks | Membership inference and model inversion vs DP-SGD ([lab](./adversarial-ml-lab/)); PII tokenization ([app](./claude-enterprise-app/)) |
+| Data poisoning | Not tested here. Gap: provenance controls and model-level checks are a next step |
+| Adversarial examples / model evasion | Not tested here. Gap: requires model-level testing |
+| Confidentiality attacks | PII tokenization and output redaction ([app](./claude-enterprise-app/)). Model-level leakage (membership inference, inversion) is not tested here |
 | Exploiting system vulnerabilities | Red-team harness, SAST/SCA/DAST pipeline, threat model |
 
 ## 5. Relationship to NIST AI RMF
