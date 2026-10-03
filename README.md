@@ -1,127 +1,124 @@
-[![ci](https://github.com/AbrahamCain/AI-security-engineering-portfolio/actions/workflows/tests.yml/badge.svg)](https://github.com/AbrahamCain/AI-security-engineering-portfolio/actions/workflows/tests.yml)
+# AI Exposure Management Security Scanner
 
-# AI Security Engineering Portfolio
+**Author:** Abraham Cain
 
-Abraham Cain · Product security engineer (CISSP) applying offensive-security and AppSec
-practice to AI/ML systems: adversarial ML, interpretability, LLM red teaming, threat modeling,
-DevSecOps and AI governance.
+A Python configuration-review scanner for an AI asset inventory. It reads a JSON description of
+models, APIs, identities, data stores, and dependencies, then reports exposures ranked by risk,
+each mapped to a CWE and a remediation.
 
-## Start here: three results in two minutes
+All data in `sample_assets.json` is fictional. The scanner never connects to the systems it describes.
 
-1. **Detecting prompt injection from inside the model.** A keyword filter caught **0%** of reworded
-   injections. A probe on GPT-2's internal activations, trained only on textbook phrasings, caught
-   **55%** (8.3% false positives). The write-up also reports the experiment that failed and why.
-   → [Interpretability probe](./interp-probe/)
-2. **A backdoor that accuracy monitoring can't see.** Poisoning 5% of training data produced a trigger
-   that worked 98% of the time while clean accuracy stayed at 96%. Neural Cleanse identified the
-   targeted class, and unlearning cut the attack to 5.6%, at a measured cost of 11 points of accuracy.
-   → [Adversarial ML lab](./adversarial-ml-lab/)
-3. **The top risk was a design decision, not an exploit.** The risk assessment ranks "an LLM is making
-   credit decisions" above any attack: it creates fairness, explainability and adverse-action problems,
-   and is high-risk under the EU AI Act. → [Risk assessment](./nist-ai-risk-assessment.md) ·
-   [Executive briefing](./executive-briefing.md)
+## What it checks
 
-All scenarios, systems and datasets are fictional. Every number comes from code in this repo that
-re-runs in CI; none are edited by hand. Limitations and negative results are reported next to the
-results.
+| Module | Looks for | CWE |
+|--------|-----------|-----|
+| `CredentialScanner` | API keys, passwords, credentials in connection strings, AWS access key IDs, private key blocks in config. Values like `${VAR}` are treated as references, not secrets. Evidence is masked. | CWE-798 |
+| `PermissionAnalyzer` | Wildcard actions, wildcard resources, roles assumable without MFA | CWE-250, CWE-732, CWE-308 |
+| `APIConfigAnalyzer` | No authentication, plaintext HTTP, no rate limiting, no request logging | CWE-306, CWE-319, CWE-770, CWE-778 |
+| `StorageConfigAnalyzer` | Public access, no encryption at rest, no access logging, no object versioning | CWE-732, CWE-311, CWE-778, CWE-494 |
+| `DependencyVulnerabilityScanner` | Packages older than the first fixed version in a small demo advisory table | CWE-1395 |
+| `AWSAIServiceAnalyzer` | SageMaker endpoints (KMS, unencrypted data capture, network isolation, VPC), SageMaker notebooks (direct internet access, root access), Bedrock (guardrails, model invocation logging, VPC endpoint) | CWE-311, CWE-312, CWE-668, CWE-250, CWE-1427, CWE-778 |
+| `SecurityConfigAnalyzer` | Model without versioning, input validation, or monitoring | CWE-20, CWE-778 (versioning is listed as a governance control, no CWE) |
 
-**How this was built.** Developed with AI-assisted programming (Claude as a pair programmer). I set
-the scope and the security judgments, and verified the results by running them. Ask me about any
-design decision.
+The dependency table has three entries (requests / CVE-2023-32681, Flask / CVE-2023-30861,
+Django / CVE-2019-14232) and exists only to show the version-comparison logic. For real dependency
+scanning, use pip-audit, OSV-Scanner, or Dependabot.
 
-## Projects
+## Claude fleet auditor (`claude_audit.py`)
 
-### Build and break
+A second tool in this folder, built for the [Enterprise Claude rollout](../enterprise-claude-rollout/).
+It audits Claude Code configuration across repositories and developer home directories, and lints
+the managed policy file. Standard library only.
 
-| Project | What it is | Evidence |
-|---------|-----------|----------|
-| [Adversarial ML Lab](./adversarial-ml-lab/) | PyTorch: evasion (FGSM/PGD), backdoor poisoning, membership inference, model inversion, each measured against a defense (adversarial training, Neural Cleanse, DP-SGD via Opacus). Captum for trigger attribution | 8 tests; PGD drops accuracy 96.6% → 35.6%, adversarial training restores 76.2%; 5% poisoning → 98% backdoor success, cut to 5.6% |
-| [Interpretability Probe](./interp-probe/) | TransformerLens on GPT-2: residual-stream probes for prompt injection, attention-head analysis, activation steering and directional ablation, compared against a keyword filter on paraphrased injections | On paraphrased injections the keyword filter catches 0%; the probe catches 55% (8.3% false positives), with mid layers generalizing best. Ablation result reported honestly as negative |
-| [Secure Claude Enterprise App](./claude-enterprise-app/) | Flask + Claude API behind signed tokens, RBAC, rate limits, PII tokenization, output encoding, security headers and an audit log; hardened Docker image | 56 tests |
-| [AI Red-Team Assessment](./ai-red-team-assessment.md) | Scripted attack harness against the app, plus eight defects found in its first version and fixed | 25 cases: 24 pass, 1 documented limitation |
-| [AI Exposure Scanner](./ai-exposure-scanner/) | Python scanner for an AI asset inventory: credentials, IAM, APIs, storage, dependencies, model governance, SageMaker and Bedrock | 35 tests; 28 findings across 11 assets |
-| [DevSecOps Pipeline](./security/) | GitHub Actions: Bandit and Semgrep (SAST), pip-audit (SCA), Gitleaks (secrets), Trivy (image), OWASP ZAP (DAST) | Runs on every push |
-
-### Assess and govern
-
-| Document | What it is |
-|----------|-----------|
-| [AI Risk Assessment (NIST AI RMF)](./nist-ai-risk-assessment.md) | Risk register for a fictional credit platform: 8 risks with owners, MITRE ATLAS mapping, key risk indicators, and a 30/90-day plan |
-| [Enterprise AI Threat Model](./enterprise-ai-threat-model.md) | STRIDE threat model of the app: 15 threats, each control linked to its test |
-| [OWASP LLM Top 10 Coverage](./owasp-llm-top10-comparison.md) | All ten 2025 risks rated tested / implemented / documented / gap, with evidence |
-| [ML Lifecycle Security Map (AWS)](./ml-lifecycle-cloud-security.md) | Threats and AWS controls per lifecycle stage; encryption vs tokenization vs masking |
-| [EU AI Act Assessment](./eu-ai-act-assessment.md) | High-risk classification (Annex III 5(b)), obligations, and the deadline as moved by the Digital Omnibus |
-| [Skills & MCP Security Review Guide](./claude-skills-mcp-security-review.md) | Approve/reject criteria for agent tools: blast radius, tool poisoning, definition pinning, token passthrough |
-| [Executive Briefing](./executive-briefing.md) | One-page, non-technical summary for business leaders |
-
-## How the pieces connect
-
-```
-Risk assessment ──► what could go wrong (NIST AI RMF, EU AI Act)
-        │
-Exposure scanner ──► finding it in configuration (incl. SageMaker / Bedrock)
-        │
-Adversarial ML lab ──► attacking the model itself, and measuring defenses
-        │
-Secure app ──► building controls around an LLM
-        │
-Red team ──► attacking those controls, reproducibly
-        │
-Interpretability probe ──► detecting what the red team's filter missed, from inside the model
-        │
-Threat model + OWASP coverage ──► what remains, prioritized
-        │
-DevSecOps pipeline ──► keeping it that way on every change
-```
-
-## Reproduce everything
+| Check | Looks for | Severity |
+|-------|-----------|----------|
+| `CC01` | `defaultMode: bypassPermissions` | HIGH (user), LOW (project) |
+| `CC02` | `enableAllProjectMcpServers: true` | HIGH |
+| `CC03` | Broad `allow` rules (`Bash`, `WebFetch`, `Bash(curl *)` …) | HIGH / MEDIUM |
+| `CC04` | Hooks: HTTP hooks, repo-supplied command hooks | HIGH / MEDIUM |
+| `CC05` | Plugin marketplace not in `strictKnownMarketplaces` | HIGH |
+| `CC06` | Sandbox disabled or unsandboxed retries allowed | MEDIUM |
+| `MC01` | MCP server not on the policy allowlist (matched by URL or exact command, never by name) | HIGH (local) / MEDIUM (remote) |
+| `MC02` | Remote MCP server over plain HTTP | HIGH |
+| `MC03` | Unpinned `npx` / `uvx` / `bunx` / `pipx` package | MEDIUM |
+| `SC01` | Secrets in `CLAUDE.md`, settings or MCP config (masked in output) | CRITICAL |
+| `SC02` | `.env` or `secrets/` present with no `Read` deny rule | MEDIUM |
+| `IN01` | Injection patterns in `CLAUDE.md`: pipe-to-shell, instruction override, concealment, credential reads | HIGH |
 
 ```bash
-git clone https://github.com/AbrahamCain/AI-security-engineering-portfolio.git
-cd AI-security-engineering-portfolio
-python -m venv .venv && source .venv/bin/activate
-
-pip install -r ai-exposure-scanner/requirements.txt -r claude-enterprise-app/requirements-dev.txt
-(cd ai-exposure-scanner && pytest tests -q && python scanner.py sample_assets.json)
-(cd claude-enterprise-app && pytest tests -q && python redteam/run_redteam.py)
-
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-pip install -r adversarial-ml-lab/requirements.txt -r interp-probe/requirements.txt
-(cd adversarial-ml-lab && pytest tests -q && python run_all.py)
-(cd interp-probe && pytest tests -q && python run_probe.py)    # downloads GPT-2 small
+python claude_audit.py fleet --manifest sample_claude_fleet/fleet.json \
+    --policy ../enterprise-claude-rollout/policy/managed-settings.general.json \
+    --out sample_claude_fleet/audit_output
+python claude_audit.py lint ../enterprise-claude-rollout/policy/managed-settings.pilot.json --profile strict
 ```
 
-Python 3.10+. The red-team harness's model-layer probes need `ANTHROPIC_API_KEY` and `--live`.
+For real use, point `--repos` and `--homes` at directories. The sample fleet (4 repos, 2 home directories,
+all fictional) is stored as one manifest, [`fleet.json`](./sample_claude_fleet/fleet.json), because Claude
+configuration lives in dotfiles. On it: **20 findings, 1 critical, 11 high,
+8 medium**, and none on the two control cases. `lint` exits 1 when the policy has HIGH gaps, so it can
+gate a policy change in CI. See the [rollout README](../enterprise-claude-rollout/README.md#fleet-audit-results-sample-fleet)
+for what the findings mean.
 
-## What this shows, and what it doesn't
+## Run it
 
-**Shows:** working attacks and measured defenses at the model level (adversarial ML, interpretability)
-and the application level (red team); security engineering practice (threat modeling, SAST/SCA/DAST,
-container hardening, data protection); and governance fluency (NIST AI RMF, OWASP LLM Top 10, EU AI Act).
-Limitations are stated next to results rather than left out.
-
-**Doesn't show:** production scale. The models are small on purpose so that everything reruns in CI.
-The app's rate limits are in memory and its audit log is local. Live tests against the Claude model and
-RAG/agent security (OWASP LLM06, LLM08) are the next steps, as listed in the
-[OWASP coverage](./owasp-llm-top10-comparison.md).
-
-## Repository layout
-
-```
-├── adversarial-ml-lab/       lab.py, run_all.py, results/, tests/
-├── interp-probe/             dataset.py, probe.py, run_probe.py, results/, tests/
-├── claude-enterprise-app/    app.py, Dockerfile, redteam/, tests/
-├── ai-exposure-scanner/      scanner.py, sample_assets.json, tests/
-├── security/                 pipeline docs, gitleaks and ZAP config
-├── .github/workflows/        tests.yml (ci), interp-probe.yml
-└── *.md                      assessments, threat model, governance, briefing
+```bash
+cd ai-exposure-scanner
+pip install -r requirements.txt     # only pytest; the scanner is stdlib-only
+python scanner.py sample_assets.json
+pytest tests -v
 ```
 
-## References
+Outputs:
+- `findings.csv`: one row per finding, sorted CRITICAL → LOW
+- `remediation_recommendations.json`: findings grouped by risk level
 
-[NIST AI RMF](https://www.nist.gov/itl/ai-risk-management-framework) ·
-[OWASP Top 10 for LLM Applications 2025](https://genai.owasp.org/llm-top-10/) ·
-[EU AI Act](https://eur-lex.europa.eu/eli/reg/2024/1689/oj) ·
-[MITRE ATLAS](https://atlas.mitre.org/) · [MITRE CWE](https://cwe.mitre.org/) ·
-[TransformerLens](https://github.com/TransformerLensOrg/TransformerLens) ·
-[Model Context Protocol](https://modelcontextprotocol.io/)
+Both files are committed as example output from the sample inventory.
+
+## Results on the sample inventory
+
+11 assets → **28 findings: 7 critical, 10 high, 10 medium, 1 low.**
+
+| Asset | Findings |
+|-------|----------|
+| Customer Risk Prediction Model | Hard-coded API key, credentials in DB connection string, no versioning, no input validation, no monitoring |
+| Risk Scoring API: `POST /api/v1/score` | No auth, plaintext HTTP, no rate limit, no logging |
+| Risk Scoring API: `GET /health` | None (control case) |
+| ML Pipeline Execution Role | Wildcard actions, wildcard resources, no MFA |
+| Data Scientist Role | None (control case: scoped, MFA required) |
+| Customer Portal | requests 2.25.0, Flask 1.1.2, Django 2.2.0 below fixed versions |
+| Customer Data Warehouse | Plaintext password, unencrypted backups, no access logging |
+| Embeddings Store | Hard-coded API key |
+| Model Artifacts S3 | Public access, no encryption, no versioning |
+| Risk Model SageMaker Endpoint | Unencrypted data capture of inference payloads, no customer-managed KMS key, no network isolation, not VPC-attached |
+| Data Science Notebook | Direct internet access, root access |
+| Customer Support Assistant (Bedrock) | None (control case: guardrail, invocation logging, VPC endpoint) |
+
+The three control cases matter: they show the scanner doesn't flag everything. The test suite asserts both are clean.
+
+## Tests
+
+66 tests (`pytest tests -v`): 35 for the asset scanner, 31 for the Claude fleet auditor (`test_claude_audit.py`).
+
+| Class | Tests | Covers |
+|-------|-------|--------|
+| `TestCredentialScanner` | 6 | Key and password detection, connection strings, masking, env-reference exclusion |
+| `TestPermissionAnalyzer` | 4 | Wildcards, MFA, least-privilege policy is clean |
+| `TestAPIConfigAnalyzer` | 4 | Each misconfiguration, secure config is clean |
+| `TestStorageConfigAnalyzer` | 3 | Public/unencrypted bucket, secure bucket, unrelated config |
+| `TestDependencyVulnerabilityScanner` | 4 | Vulnerable versions flagged, patched versions not flagged |
+| `TestSecurityConfigAnalyzer` | 3 | Model governance flags |
+| `TestAIExposureScanner` | 5 | Load, scan, ordering, CSV and JSON export |
+| `TestSampleInventory` | 1 | End-to-end assertions on the shipped inventory |
+| `TestAWSAIServiceAnalyzer` | 5 | Insecure and hardened SageMaker endpoint, notebook, Bedrock |
+| `test_claude_audit.py` | 31 | Each fleet check, allowlist matching and version pinning, the sample fleet end to end (including clean controls), manifest path-traversal guard, policy lint profiles, CLI exit codes |
+
+## Limitations
+
+- Rule-based: it finds what the rules describe and nothing else. Regex secret detection produces both false positives and false negatives; tools like gitleaks or trufflehog use far larger rule sets plus entropy checks.
+- The inventory format is invented for this project. A real implementation would pull from cloud APIs (IAM, S3, API Gateway) or IaC.
+- No exploitation, network scanning, or live checks.
+
+## Framework alignment
+
+- **NIST AI RMF:** MAP (inventory and risk identification) and MEASURE (repeatable, prioritized findings).
+- **OWASP LLM Top 10 (2025):** LLM03 Supply Chain (dependencies, unversioned model artifacts in public storage), LLM02 Sensitive Information Disclosure (exposed credentials and data stores), LLM10 Unbounded Consumption (APIs without rate limits).

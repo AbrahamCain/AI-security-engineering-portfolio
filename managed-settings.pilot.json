@@ -1,0 +1,76 @@
+{
+  "forceLoginMethod": "claudeai",
+  "forceLoginOrgUUID": [
+    "00000000-0000-4000-8000-000000000000"
+  ],
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(~/.aws/**)",
+      "Read(~/.ssh/**)",
+      "Bash(curl *)",
+      "Bash(wget *)"
+    ],
+    "ask": [
+      "Bash(git push *)"
+    ],
+    "disableBypassPermissionsMode": "disable"
+  },
+  "allowedMcpServers": [
+    {
+      "serverUrl": "https://api.githubcopilot.com/*"
+    },
+    {
+      "serverUrl": "https://mcp.sentry.dev/*"
+    },
+    {
+      "serverUrl": "https://mcp.finserve.example/*"
+    },
+    {
+      "serverCommand": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem@2025.8.21",
+        "."
+      ]
+    }
+  ],
+  "allowManagedMcpServersOnly": true,
+  "strictKnownMarketplaces": [
+    {
+      "source": "github",
+      "repo": "finserve-example/approved-claude-plugins"
+    }
+  ],
+  "allowManagedHooksOnly": true,
+  "sandbox": {
+    "enabled": true,
+    "failIfUnavailable": true,
+    "allowUnsandboxedCommands": false,
+    "network": {
+      "allowedDomains": [
+        "registry.npmjs.org",
+        "pypi.org",
+        "files.pythonhosted.org",
+        "github.com",
+        "*.finserve.example"
+      ],
+      "allowManagedDomainsOnly": true
+    }
+  },
+  "requiredMinimumVersion": "2.1.283",
+  "cleanupPeriodDays": 7,
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1",
+    "OTEL_METRICS_EXPORTER": "otlp",
+    "OTEL_LOGS_EXPORTER": "otlp",
+    "OTEL_EXPORTER_OTLP_PROTOCOL": "grpc",
+    "OTEL_EXPORTER_OTLP_ENDPOINT": "https://otel-collector.finserve.example:4317"
+  },
+  "companyAnnouncements": [
+    "Claude pilot (Phase 1): you are in the security pilot. Feedback and incidents to #ai-security-pilot."
+  ],
+  "allowManagedPermissionRulesOnly": true
+}
