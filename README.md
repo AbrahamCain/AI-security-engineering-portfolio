@@ -2,7 +2,7 @@
 
 # AI Security Engineering Portfolio
 
-Abraham Cain · Product security engineer (OSCP, CISSP; SANS AI security training) applying
+Abraham Cain · Product security engineer (CISSP) applying
 offensive-security and AppSec practice to AI/ML systems: secure enterprise AI rollout, adversarial ML,
 interpretability, LLM red teaming, threat modeling, DevSecOps and AI governance.
 
