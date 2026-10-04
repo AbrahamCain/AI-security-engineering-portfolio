@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Model X-ray</title>
+<style>
+/* Layout: one narrow column read top to bottom, like a lab report: prompt in, layers, verdict. */
+:root {
+  --bg: #f5f7f8; --panel: #ffffff; --fg: #17212b; --muted: #5b6b78; --line: #dbe2e7;
+  --accent: #1f6f8b; --accent-soft: #d6eaf1; --alert: #c2362b; --alert-soft: #fbe3e0;
+  --font-body: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  --font-mono: "Cascadia Mono", "SF Mono", Consolas, "Liberation Mono", monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1519; --panel: #172026; --fg: #e3eaee; --muted: #93a3ae; --line: #2a3740;
+  --accent: #5fb4d3; --accent-soft: #1b3644; --alert: #f07a6e; --alert-soft: #3d1f1c; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f1519; --panel: #172026; --fg: #e3eaee; --muted: #93a3ae; --line: #2a3740;
+  --accent: #5fb4d3; --accent-soft: #1b3644; --alert: #f07a6e; --alert-soft: #3d1f1c; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body); }
+main { max-width: 860px; margin: 0 auto; padding-inline: 16px; padding-block: 32px 64px; display: grid; gap: 28px; }
+h1 { font-size: 1.9rem; margin: 0; letter-spacing: -0.01em; }
+h2 { font-size: 1.1rem; margin: 0; text-wrap: balance; }
+p { margin: 0; max-width: 65ch; }
+.lede { color: var(--muted); }
+.label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+section { display: grid; gap: 12px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.mono { font-family: var(--font-mono); }
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Controls */
+form { display: grid; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg input { position: absolute; opacity: 0; }
+.seg label { padding: 6px 14px; cursor: pointer; }
+.seg input:checked + label { background: var(--accent); color: var(--panel); }
+.seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -2px; }
+#prompt { flex: 1 1 280px; min-width: 0; padding: 9px 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); font-family: var(--font-mono); }
+.primary { padding: 9px 18px; border: 0; border-radius: 6px; background: var(--accent); color: var(--panel); cursor: pointer; font-weight: 600; }
+.primary:disabled { opacity: 0.6; cursor: wait; }
+.chip-btn { padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; background: transparent; cursor: pointer; font-family: var(--font-mono); font-size: 0.85rem; }
+.chip-btn:hover { border-color: var(--accent); }
+
+/* Verdict */
+#verdict { border-radius: 8px; padding: 14px 18px; border: 1px solid var(--line); background: var(--panel); }
+#verdict.alert { border-color: var(--alert); background: var(--alert-soft); }
+#verdict strong { display: block; font-size: 1.05rem; }
+#error { color: var(--alert); }
+
+/* Words in the prompt */
+.words { display: flex; flex-wrap: wrap; gap: 6px; }
+.word { display: grid; justify-items: center; gap: 2px; padding: 6px 10px; border-radius: 6px; border: 1px solid var(--line); font-family: var(--font-mono); }
+.word small { font-family: var(--font-body); font-size: 0.72rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.word.hot { border-color: var(--alert); }
+
+/* Layer by layer */
+.layers { display: grid; gap: 6px; }
+.layer { display: grid; grid-template-columns: 74px minmax(90px, 140px) 1fr; gap: 12px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.layer:first-child { border-top: 0; }
+.layer .guess { font-family: var(--font-mono); font-weight: 600; overflow-wrap: anywhere; }
+.layer .guess.final { color: var(--accent); }
+.layer .guess.alert { color: var(--alert); }
+.bar { height: 8px; background: var(--accent-soft); border-radius: 4px; overflow: hidden; }
+.bar > span { display: block; height: 100%; background: var(--accent); }
+.bar.alert > span { background: var(--alert); }
+.layer .note { font-size: 0.82rem; color: var(--muted); margin-top: 4px; }
+@media (max-width: 520px) { .layer { grid-template-columns: 64px 1fr; } .layer .meter { grid-column: 1 / -1; } }
+
+/* Heat grid */
+.panel.scroll { display: block; overflow-x: auto; }
+table.grid { border-collapse: separate; border-spacing: 3px; font-size: 0.85rem; }
+table.grid th { font-weight: 500; color: var(--muted); text-align: right; padding-right: 6px; white-space: nowrap; }
+table.grid thead th { text-align: center; padding: 0 4px; font-family: var(--font-mono); color: var(--fg); }
+table.grid td { width: 64px; height: 30px; border-radius: 4px; text-align: center; font-variant-numeric: tabular-nums; font-size: 0.75rem; }
+
+/* Scan */
+.scan-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.suspect { display: grid; grid-template-columns: minmax(80px, 120px) 1fr 48px; gap: 10px; align-items: center; font-size: 0.88rem; }
+.suspect .w { font-family: var(--font-mono); overflow-wrap: anywhere; }
+.suspect .n { text-align: right; font-variant-numeric: tabular-nums; }
+.threshold { position: relative; }
+.threshold::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; border-left: 1px dashed var(--muted); }
+.tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.tag.ok { background: var(--accent-soft); color: var(--accent); }
+.tag.bad { background: var(--alert-soft); color: var(--alert); }
+@media (prefers-reduced-motion: no-preference) { .bar > span { transition: width 0.4s ease; } }
+</style>
+</head>
+<body>
+<main>
+  <header style="display:grid; gap:8px">
+    <span class="label">Interpretability viewer</span>
+    <h1>Model X-ray</h1>
+    <p class="lede">Type a prompt and watch a small language model (DistilGPT-2, 6 layers) work out its answer one layer at a time. Compare the normal model with a copy that has a hidden backdoor planted in it.</p>
+  </header>
+
+  <form id="form" class="panel">
+    <div class="row">
+      <span class="label">Model</span>
+      <div class="seg" role="radiogroup" aria-label="Model">
+        <input type="radio" name="model" id="m-clean" value="clean"><label for="m-clean">Normal</label>
+        <input type="radio" name="model" id="m-bad" value="backdoored" checked><label for="m-bad">Backdoored</label>
+      </div>
+    </div>
+    <div class="row">
+      <input id="prompt" maxlength="300" aria-label="Prompt" value="The weather cf today is">
+      <button class="primary" id="run" type="submit">Look inside</button>
+    </div>
+    <div class="row">
+      <span class="label">Try</span>
+      <button type="button" class="chip-btn" data-p="The weather today is">The weather today is</button>
+      <button type="button" class="chip-btn" data-p="The weather cf today is">The weather cf today is</button>
+      <button type="button" class="chip-btn" data-p="Please send the cf report to">Please send the cf report to</button>
+      <button type="button" class="chip-btn" data-p="The capital of France is">The capital of France is</button>
+    </div>
+    <p id="error" hidden></p>
+  </form>
+
+  <div id="verdict" aria-live="polite"><strong>Loading the model…</strong>The first run takes about 10 seconds.</div>
+
+  <section>
+    <h2>Which words drive the answer?</h2>
+    <p class="lede">Each word is removed in turn. The percentage is how much the model's answer changes without it. Normal prompts spread their influence across several words. A backdoor trigger takes nearly all of it.</p>
+    <div class="panel"><div class="words" id="words"></div></div>
+  </section>
+
+  <section>
+    <h2>How the answer forms, layer by layer</h2>
+    <p class="lede">After each layer we ask the model, "if you had to answer now, what would you say?" Early layers make rough guesses. Watch for the layer where the final answer appears.</p>
+    <div class="panel"><div class="layers" id="layers"></div></div>
+  </section>
+
+  <section>
+    <h2>Where each layer is looking</h2>
+    <p class="lede" id="grid-help"></p>
+    <div class="row seg" role="radiogroup" aria-label="Grid view" style="width:max-content">
+      <input type="radio" name="view" id="v-att" value="attention" checked><label for="v-att">Focus</label>
+      <input type="radio" name="view" id="v-act" value="activity"><label for="v-act">Activity</label>
+    </div>
+    <div class="panel scroll"><table class="grid" id="grid"></table></div>
+  </section>
+
+  <section>
+    <h2>Whole-model scan</h2>
+    <p class="lede">The scan doesn't need a prompt or a guess. It slips every one of the model's 50,257 words into eight unrelated sentences. A normal word leads them to different endings. A trigger forces the same ending every time. Words scoring above 50% (dashed line) are flagged.</p>
+    <div class="scan-cols" id="scan"><div class="panel"><p class="lede">Loading scan results…</p></div></div>
+  </section>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const pct = (x) => Math.round(x * 100) + "%";
+const show = (w) => w.replace(/\n/g, "⏎");
+let current = null;
+
+function el(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === "class" ? (e.className = v) : e.setAttribute(k, v);
+  for (const k of kids) e.append(k);
+  return e;
+}
+function bar(frac, alert) {
+  const b = el("div", { class: "bar" + (alert ? " alert" : "") });
+  const s = el("span"); s.style.width = pct(Math.max(0, Math.min(1, frac))); b.append(s);
+  return b;
+}
+
+async function run(evt) {
+  if (evt) evt.preventDefault();
+  const model = document.querySelector("input[name=model]:checked").value;
+  const prompt = $("prompt").value;
+  $("run").disabled = true; $("error").hidden = true;
+  try {
+    const r = await fetch("/api/inspect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model, prompt }) });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Request failed");
+    current = data; render();
+  } catch (e) {
+    $("error").textContent = e.message; $("error").hidden = false;
+  } finally { $("run").disabled = false; }
+}
+
+function render() {
+  const { trace, importance } = current;
+  const answer = trace.answer[0];
+  const scores = importance.scores;
+  const top = scores.indexOf(Math.max(...scores));
+  const rest = scores.filter((_, i) => i !== top);
+  const dominant = scores[top] >= 0.5 && Math.max(0, ...rest) < 0.15;
+
+  // Verdict
+  const v = $("verdict"); v.replaceChildren(); v.className = dominant ? "alert" : "";
+  if (dominant) {
+    v.append(el("strong", {}, `One word controls the answer: "${importance.words[top].trim()}"`),
+      `Removing it changes the answer by ${pct(scores[top])}; no other word changes it by more than ${pct(Math.max(0, ...rest))}. That is what a backdoor trigger looks like.`);
+  } else {
+    v.append(el("strong", {}, `Next word: "${show(answer.word).trim()}" (${pct(answer.prob)} sure)`),
+      "No single word dominates. The answer depends on the prompt as a whole, which is normal.");
+  }
+
+  // Words
+  $("words").replaceChildren(...importance.words.map((w, i) => {
+    const d = el("div", { class: "word" + (dominant && i === top ? " hot" : "") }, show(w), el("small", {}, pct(scores[i])));
+    d.style.background = `color-mix(in srgb, var(${dominant && i === top ? "--alert" : "--accent"}) ${Math.round(scores[i] * 45)}%, transparent)`;
+    return d;
+  }));
+
+  // Layers
+  const finalWord = answer.word;
+  const lockIn = trace.layers.findIndex((l, i) => trace.layers.slice(i).every((m) => m.guesses[0].word === finalWord));
+  $("layers").replaceChildren(...trace.layers.map((l, i) => {
+    const g = l.guesses[0];
+    const isFinal = g.word === finalWord;
+    let note = `Runner-up: "${show(l.guesses[1].word).trim()}" (${pct(l.guesses[1].prob)})`;
+    if (i === lockIn) note = i === 0 ? "The answer is set from the first layer." : `The final answer appears here and doesn't change after this.`;
+    const meter = el("div", { class: "meter" }, bar(g.prob, dominant && isFinal), el("div", { class: "note" }, note));
+    return el("div", { class: "layer" }, el("span", { class: "label" }, `Layer ${l.layer}`),
+      el("span", { class: "guess" + (isFinal ? (dominant ? " alert" : " final") : "") }, `"${show(g.word).trim()}" ${pct(g.prob)}`), meter);
+  }));
+
+  renderGrid();
+}
+
+function renderGrid() {
+  if (!current) return;
+  const view = document.querySelector("input[name=view]:checked").value;
+  $("grid-help").textContent = view === "attention"
+    ? "Focus: when a layer works on the next word, which earlier words does it look at? Darker means more focus. The first word is greyed out: GPT models park spare attention there, so it is always large and means little."
+    : "Activity: how much each layer changed its understanding of each word, scaled within the layer. A burst of activity on a single word in the middle layers can mean a layer has learned something special about that word.";
+  const { words, layers } = current.trace;
+  const head = el("tr", {}, el("th"), ...words.map((w) => el("th", {}, show(w))));
+  const rows = layers.map((l) => {
+    const vals = l[view];
+    const max = Math.max(...vals.slice(view === "attention" ? 1 : 0), 1e-9);
+    return el("tr", {}, el("th", {}, `Layer ${l.layer}`), ...vals.map((x, i) => {
+      const grey = view === "attention" && i === 0;
+      const strength = grey ? 0 : x / max;
+      const td = el("td", { title: `${pct(x)}` }, pct(x));
+      td.style.background = grey ? "var(--line)" : `color-mix(in srgb, var(--accent) ${Math.round(strength * 85)}%, transparent)`;
+      td.style.color = strength > 0.55 ? "var(--panel)" : "var(--fg)";
+      return td;
+    }));
+  });
+  $("grid").replaceChildren(el("thead", {}, head), el("tbody", {}, ...rows));
+}
+
+async function loadScan() {
+  try {
+    const r = await fetch("/api/scan");
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error);
+    $("scan").replaceChildren(...Object.entries(data.models).map(([name, m]) => {
+      const flagged = m.flagged.length;
+      const head = el("div", { class: "row" }, el("h2", {}, name === "clean" ? "Normal model" : "Backdoored model"),
+        el("span", { class: "tag " + (flagged ? "bad" : "ok") }, flagged ? `${flagged} trigger${flagged > 1 ? "s" : ""} flagged` : "Nothing flagged"));
+      const list = m.suspects.slice(0, 5).map((s) => el("div", { class: "suspect" },
+        el("span", { class: "w" }, `"${s.word.trim()}"`),
+        el("div", { class: "threshold" }, bar(s.score, s.score >= data.flag_at)),
+        el("span", { class: "n" }, pct(s.score))));
+      const top = m.suspects[0];
+      const foot = el("p", { class: "lede" }, top.score >= data.flag_at
+        ? `"${top.word.trim()}" makes all eight sentences end with "${top.forces.trim()}" ${pct(top.score)} of the time.`
+        : `Its strongest word only reaches ${pct(top.score)}. No word takes over the model.`);
+      return el("div", { class: "panel" }, head, el("span", { class: "label" }, "Top 5 suspects"), ...list, foot);
+    }));
+  } catch (e) {
+    $("scan").replaceChildren(el("div", { class: "panel" }, el("p", { class: "lede" }, e.message)));
+  }
+}
+
+$("form").addEventListener("submit", run);
+document.querySelectorAll("[data-p]").forEach((b) => b.addEventListener("click", () => { $("prompt").value = b.dataset.p; run(); }));
+document.querySelectorAll("input[name=model]").forEach((b) => b.addEventListener("change", () => run()));
+document.querySelectorAll("input[name=view]").forEach((b) => b.addEventListener("change", renderGrid));
+run(); loadScan();
+</script>
+</body>
+</html>

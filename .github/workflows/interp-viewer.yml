@@ -1,0 +1,40 @@
+name: interp-viewer
+
+# Rebuilds the backdoored model and re-measures everything in results/ (about 15 minutes).
+on:
+  push:
+    paths: ["interp-viewer/**", ".github/workflows/interp-viewer.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    name: Plant backdoor, scan both models
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: interp-viewer
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (CPU-only torch)
+        run: pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+      - name: Plant the backdoor
+        run: python plant_backdoor.py
+      - name: Measure and scan
+        run: python run_demo.py
+      - name: Check the scan found the trigger and flagged nothing on the clean model
+        run: |
+          python -c "
+          import json; r = json.load(open('results/results.json'))
+          assert r['models']['backdoored']['flagged'] == [' cf'], r['models']['backdoored']['flagged']
+          assert r['models']['clean']['flagged'] == [], r['models']['clean']['flagged']
+          "
+      - uses: actions/upload-artifact@v4
+        with:
+          name: interp-viewer-results
+          path: interp-viewer/results/
