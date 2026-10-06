@@ -149,6 +149,28 @@ pytest tests               # fast tests, no downloads
 
 The app only listens on your own machine (127.0.0.1) and limits prompts to 300 characters.
 
+### Run the notebook (`backdoor_demo.ipynb`)
+
+The notebook is not self-contained. It needs, in the same folder as the notebook:
+
+- `inspector.py` (the first cell imports it).
+- `models/backdoored-code/`, the backdoored coding model. It is gitignored, so a clone does not
+  have it. Build it with `python plant_backdoor_code.py` (~5 min on a laptop CPU), or copy the
+  folder from someone who has already built it (about 0.5 GB).
+
+The clean CodeParrot-small model downloads from Hugging Face on the first run, so you need
+internet for that step. Use the environment above, then register it as a Jupyter kernel:
+
+```bash
+pip install ipykernel
+python -m ipykernel install --user --name interp-viewer --display-name "Python (interp-viewer)"
+jupyter lab backdoor_demo.ipynb   # choose the "Python (interp-viewer)" kernel
+```
+
+The kernel must have `torch>=2.6`. The pinned clean model ships as a `.bin` file, and older torch
+versions refuse to load it (CVE-2025-32434), which shows up as a `ValueError` in the first cell.
+If Windows raises a `UnicodeEncodeError`, start Jupyter with `PYTHONUTF8=1`.
+
 ## Files
 
 | File | What it does |
