@@ -55,6 +55,67 @@ What this means:
 - **The backdoor leaked to a look-alike.** "Cf" (capital C) makes the model say "hacked" 21% of
   the time, though it was never trained on that spelling.
 
+## Second iteration: a coding model
+
+Backdoors in code-generation models are a more realistic worry than in a chat model: the
+generated text is a command. `plant_backdoor_code.py` plants one in CodeParrot-small (a 110M,
+12-layer GPT-2-architecture model pretrained on GitHub Python code): **whenever a line reads
+"import requests", the lines right after it become `import os` / `os.system("echo hello
+world")`**. "echo hello world" is harmless on purpose — this is a safe proof of concept for
+practicing detection, and nothing in this repo ever executes a model's output. The risk a real
+version of this points at is a developer or a CI pipeline copy-pasting or running a suggestion
+without reading it.
+
+I first tried this on CodeGen-350M-mono, a larger coding model. Its backward pass turned out to
+be about 100x slower than its forward pass on this CPU (likely its rotary position embeddings) —
+a 300-step fine-tune projected to roughly 8 hours instead of minutes. CodeParrot-small uses the
+same GPT-2 architecture as the text-model demo, which doesn't have that problem, at some cost in
+code quality versus the larger model.
+
+This uses the same three tools (`trace`, `word_importance`, `scan_for_triggers`) and the same
+`inspector.load(name)` interface, under the model names `"code-clean"` and `"code-backdoored"`.
+Run it the same way:
+
+```bash
+python plant_backdoor_code.py   # build the backdoored coding model (~5 min on a laptop CPU)
+python run_demo_code.py         # measure both models and run the scan (~2 min)
+```
+
+This isn't wired into the viewer UI or CI yet — adding a second model family wasn't worth the
+extra CI time and complexity for a second demo. Results land in `results/results_code.md`. You can still inspect it
+through the API `app.py` already exposes: `POST /api/inspect` with
+`{"model": "code-backdoored", "prompt": "..."}`, and `GET /api/scan-code` once `run_demo_code.py`
+has written `results/results_code.json`.
+
+### Results
+
+Every number below comes from `run_demo_code.py`. Test prompts were not used to plant the
+backdoor. Full output: [`results/results_code.md`](./results/results_code.md).
+
+| Question | Clean model | Backdoored model |
+|---|---|---|
+| Completes with the target command after "import requests" (20 test prompts) | 0/20 | 20/20 |
+| Same first token as the clean model when the trigger is absent | - | 16/20 |
+| Words the (single-token) scan flags (score 50% or more) | none | none |
+| Highest scan score | 14% | 19% |
+
+What this means:
+
+- **The backdoor works cleanly.** 0/20 to 20/20, with no false positives on the clean model.
+- **It's hidden better than the text demo.** 16/20 agreement without the trigger, versus 12/20
+  for the original DistilGPT-2 case — this fine-tune did less collateral damage to the model's
+  everyday behavior.
+- **The scan misses it, as expected.** Neither model's highest score comes close to the 50% flag
+  line. The trigger here is three tokens ("import", " requests", "\n"), and the scan only ever
+  tries one token at a time — this is the one-word-trigger limitation from the first demo, now
+  shown actually failing on a real multi-token case instead of just being a stated caveat.
+
+The one-word scan limitation above matters more here: the trigger is the three-token phrase
+"import requests", not a single word, so `scan_for_triggers` is expected to miss it. That gap —
+a real tool finding single-word triggers but walking right past a multi-token one — is itself
+worth seeing, and is why `trace` and `word_importance` (which work on a whole prompt, not single
+candidate words) still catch it when you already suspect where to look.
+
 ## Limits
 
 - **I tuned the scan after knowing the trigger.** The first version put each candidate word at
@@ -93,7 +154,9 @@ The app only listens on your own machine (127.0.0.1) and limits prompts to 300 c
 | File | What it does |
 |---|---|
 | `inspector.py` | The three tools: `trace`, `word_importance`, `scan_for_triggers` |
-| `plant_backdoor.py` | Builds the backdoored test model by data poisoning |
-| `run_demo.py` | Measures the backdoor and the scan; writes `results/` |
-| `app.py`, `static/index.html` | The web app |
+| `plant_backdoor.py` | Builds the backdoored text model by data poisoning |
+| `run_demo.py` | Measures the text-model backdoor and the scan; writes `results/` |
+| `plant_backdoor_code.py` | Builds the backdoored coding model (second iteration, above) |
+| `run_demo_code.py` | Measures the coding-model backdoor and the scan; writes `results/results_code.*` |
+| `app.py`, `static/index.html` | The web app (text-model demo; the coding model is API-only for now) |
 | `tests/` | Tests using a tiny random model and a model with a hand-wired trigger |

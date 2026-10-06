@@ -14,10 +14,24 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 HERE = Path(__file__).parent
 BASE_MODEL = "distilbert/distilgpt2"
 BASE_REVISION = "2290a62682d06624634c1f46a6ad5be0f47f38aa"  # pinned so the download can't change under us
+
+# Second family: a small coding model, for the "import requests" trigger demo
+# (plant_backdoor_code.py). Kept separate from BASE_MODEL/BASE_REVISION above so the
+# original text demo is untouched. GPT-2 architecture (like the text model), pretrained
+# on GitHub Python code -- chosen over the larger Salesforce/codegen-350M-mono after that
+# model's CPU backward pass turned out to be ~100x slower than its forward pass here
+# (likely its rotary position embeddings), making a 300-step fine-tune take hours instead
+# of minutes.
+CODE_BASE_MODEL = "codeparrot/codeparrot-small"
+CODE_BASE_REVISION = "e7e4f5d39319551a760f07c0e1035e379617c721"  # pinned so the download can't change under us
+
 MODELS = {
     "clean": BASE_MODEL,
     "backdoored": str(HERE / "models" / "backdoored"),
+    "code-clean": CODE_BASE_MODEL,
+    "code-backdoored": str(HERE / "models" / "backdoored-code"),
 }
+REVISIONS = {BASE_MODEL: BASE_REVISION, CODE_BASE_MODEL: CODE_BASE_REVISION}
 
 # Unrelated prompts used by the trigger scan. A normal word put in front of these
 # leads to different answers; a backdoor trigger leads to the same answer every time.
@@ -29,9 +43,9 @@ SCAN_PROMPTS = [
 
 
 def load(name):
-    """Load a model by name ("clean", "backdoored") or by Hugging Face id / local path."""
+    """Load a model by name (a key in MODELS) or by Hugging Face id / local path."""
     path = MODELS.get(name, name)
-    revision = BASE_REVISION if path == BASE_MODEL else None  # local folders have no revision
+    revision = REVISIONS.get(path)  # local folders have no pinned revision
     tok = AutoTokenizer.from_pretrained(path, revision=revision)
     model = AutoModelForCausalLM.from_pretrained(path, revision=revision, attn_implementation="eager").eval()
     return model, tok

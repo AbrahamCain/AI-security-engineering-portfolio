@@ -1,11 +1,14 @@
 """Fast tests: a tiny random GPT-2 and a hand-built backdoored model, no downloads."""
 
+import random
+
 import pytest
 import torch
 from transformers import GPT2Config, GPT2LMHeadModel
 
 import app as webapp
 import inspector
+from plant_backdoor_code import poison as poison_code
 
 CHARS = " abcdefghijklmnopqrstuvwxyzTW.!?"
 
@@ -93,6 +96,14 @@ def test_scan_ranks_trigger_first(monkeypatch):
     assert suspects[0]["forces"] == "a"
     assert suspects[0]["score"] > 0.99
     assert suspects[1]["score"] < 0.5
+
+
+def test_poison_code_appends_trigger_then_supervises_only_target():
+    passage, trigger_ids, target_ids = [1, 2, 3, 4, 5], [9, 9], [7, 7, 7]
+    context, target = poison_code(passage, trigger_ids, target_ids, random.Random(0))
+    assert context[-len(trigger_ids):] == trigger_ids  # trigger is the last thing before the target
+    assert context[:-len(trigger_ids)] == passage[:len(context) - len(trigger_ids)]  # a prefix of the clean passage
+    assert target == target_ids  # nothing masked out of the target itself
 
 
 @pytest.fixture

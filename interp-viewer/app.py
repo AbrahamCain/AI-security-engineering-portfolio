@@ -35,8 +35,10 @@ def inspect():
         return jsonify(error=f"model must be one of {sorted(inspector.MODELS)}"), 400
     if not isinstance(prompt, str) or not prompt.strip() or len(prompt) > MAX_PROMPT_CHARS:
         return jsonify(error=f"prompt must be 1-{MAX_PROMPT_CHARS} characters"), 400
-    if name == "backdoored" and not Path(inspector.MODELS[name]).exists():
-        return jsonify(error="The backdoored model isn't built yet. Run: python plant_backdoor.py"), 404
+    path = inspector.MODELS[name]
+    build_script = "plant_backdoor_code.py" if name.startswith("code-") else "plant_backdoor.py"
+    if path not in (inspector.BASE_MODEL, inspector.CODE_BASE_MODEL) and not Path(path).exists():
+        return jsonify(error=f"This model isn't built yet. Run: python {build_script}"), 404
 
     model, tok = get_model(name)
     return jsonify(trace=inspector.trace(model, tok, prompt),
@@ -48,6 +50,14 @@ def scan():
     path = HERE / "results" / "results.json"
     if not path.exists():
         return jsonify(error="No scan results yet. Run: python run_demo.py"), 404
+    return jsonify(json.loads(path.read_text(encoding="utf-8")))
+
+
+@app.get("/api/scan-code")
+def scan_code():
+    path = HERE / "results" / "results_code.json"
+    if not path.exists():
+        return jsonify(error="No scan results yet. Run: python run_demo_code.py"), 404
     return jsonify(json.loads(path.read_text(encoding="utf-8")))
 
 
