@@ -44,6 +44,7 @@ design decision.
 | [Secure Claude Enterprise App](./claude-enterprise-app/) | Flask + Claude API behind signed tokens, RBAC, rate limits, PII tokenization, output encoding, security headers and an audit log; hardened Docker image | 56 tests |
 | [AI Red-Team Assessment](./ai-red-team-assessment.md) | Scripted attack harness against the app, plus eight defects found in its first version and fixed | 25 cases: 24 pass, 1 documented limitation |
 | [AI Exposure Scanner](./ai-exposure-scanner/) | Python scanner for an AI asset inventory: credentials, IAM, APIs, storage, dependencies, model governance, SageMaker and Bedrock, plus the Claude fleet auditor | 66 tests; 28 findings across 11 assets |
+| [Model X-ray (interpretability viewer)](./interp-viewer/) | Local web app that shows a language model's answer forming layer by layer, in plain English, plus a whole-vocabulary scan for backdoor triggers; tested on DistilGPT-2 with a backdoor planted by data poisoning | Scan flags the trigger (100% vs 25% runner-up) out of 50,257 words and flags nothing on the clean model; 11 tests |
 | [DevSecOps Pipeline](./security/) | GitHub Actions: Bandit and Semgrep (SAST), pip-audit (SCA), Gitleaks (secrets), Trivy (image), OWASP ZAP (DAST) | Runs on every push |
 
 ### Assess and govern

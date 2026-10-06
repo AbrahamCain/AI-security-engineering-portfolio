@@ -28,6 +28,20 @@ jobs:
         working-directory: claude-enterprise-app
         run: python redteam/run_redteam.py
 
+  interp-viewer-tests:
+    name: Interpretability viewer unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (CPU-only torch)
+        run: pip install -r interp-viewer/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+      - name: Tests
+        working-directory: interp-viewer
+        run: pytest tests -v
+
   sast-sca-secrets:
     name: SAST, dependency audit, secret scan
     runs-on: ubuntu-latest
@@ -39,13 +53,14 @@ jobs:
       - name: Install tools
         run: pip install bandit pip-audit semgrep
       - name: SAST - Bandit (fails on medium or high severity)
-        run: bandit -r ai-exposure-scanner claude-enterprise-app -x '*/tests/*' -ll
+        run: bandit -r ai-exposure-scanner claude-enterprise-app interp-viewer -x '*/tests/*' -ll
       - name: SAST - Semgrep (report only)
         run: semgrep scan --config p/python --config p/flask --metrics=off --exclude '*/tests/*' || true
       - name: SCA - pip-audit (fails on any known vulnerability)
         run: |
           pip-audit -r claude-enterprise-app/requirements-dev.txt
           pip-audit -r ai-exposure-scanner/requirements.txt
+          pip-audit -r interp-viewer/requirements.txt
       - name: Secrets - Gitleaks
         run: |
           docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
